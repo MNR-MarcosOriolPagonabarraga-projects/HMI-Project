@@ -1,8 +1,6 @@
-function [clean_channels, removed_idx] = discard_bad_channels(channels)
-    threshold = 0.5;
-    trim_percent = 10;
+function [clean_channels, removed_idx] = discard_bad_channels(channels, threshold)
     % Find the indices
-    removed_idx = get_bad_channels(channels, threshold, trim_percent);
+    removed_idx = get_bad_channels(channels, threshold);
     
     % Remove them from the matrix
     clean_channels = channels;
