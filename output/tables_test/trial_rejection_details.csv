@@ -1,0 +1,4 @@
+subject,run,class_code,class_label,trial_in_run,stimulus_sample,movement_sample,reaction_time_sec,rt_rejected,amplitude_rejected_channel_count,amplitude_rejected_channels,final_rejected_channel_count,final_rejected_channels,trial_status
+1,1,1540,close_hand,1,100,200,0.5,0,1,"C2",1,"C2",channel_rejected
+1,1,1540,close_hand,2,100,200,0.5,1,0,"",3,"ALL_CHANNELS (reaction time)",rt_rejected
+1,1,1540,close_hand,3,100,200,0.5,0,2,"C1, C3",2,"C1, C3",channel_rejected
