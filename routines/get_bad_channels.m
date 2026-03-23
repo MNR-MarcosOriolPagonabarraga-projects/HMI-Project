@@ -7,5 +7,5 @@ function bad_idx = get_bad_channels(channels, threshold)
     R(logical(eye(size(R)))) = NaN;
     mean_corr = mean(R, 2, 'omitnan');
 
-    bad_idx = find(mean_corr < -threshold);
+    bad_idx = find(mean_corr < threshold);
 end
