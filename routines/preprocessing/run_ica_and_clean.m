@@ -1,13 +1,18 @@
 function EEG = run_ica_and_clean(EEG, cfg)
     dataRank = rank(double(EEG.data));
-    fprintf('[%s] Running ICA...\n', timestamp_string());
+    ica_backend = select_ica_backend(cfg);
+    fprintf('[%s] Running ICA with %s...\n', timestamp_string(), upper(ica_backend));
     ica_timer = tic;
-    EEG = pop_runica(EEG, 'icatype', 'runica', 'extended', 1, 'pca', dataRank);
+    EEG = pop_runica(EEG, 'icatype', ica_backend, 'extended', 1, 'pca', dataRank);
     fprintf('[%s] ICA finished in %.1f minutes.\n', timestamp_string(), toc(ica_timer) / 60);
 
     fprintf('[%s] Starting ICLabel classification.\n', timestamp_string());
     fprintf('[%s] If MatConvNet is not compiled, this step can be very slow.\n', timestamp_string());
-    heartbeat = start_console_heartbeat('ICLabel', 30);
+    if isunix && ~contains(getenv('LD_PRELOAD'), 'libstdc++.so.6')
+        fprintf('[%s] Hint: launch MATLAB through run_matlab_fast.sh to avoid slow ICLabel fallback.\n', timestamp_string());
+    end
+
+    heartbeat = start_console_heartbeat('ICLabel', cfg.heartbeat_sec);
     heartbeat_cleanup = onCleanup(@() stop_console_heartbeat(heartbeat));
     iclabel_timer = tic;
     EEG = iclabel(EEG);
@@ -27,6 +32,38 @@ function EEG = run_ica_and_clean(EEG, cfg)
     end
 
     EEG = eeg_checkset(EEG);
+end
+
+function ica_backend = select_ica_backend(cfg)
+    requested_algorithm = lower(string(cfg.algorithm));
+
+    if requested_algorithm ~= "auto"
+        ica_backend = char(requested_algorithm);
+        return;
+    end
+
+    if can_use_binica()
+        ica_backend = 'binica';
+    else
+        ica_backend = 'runica';
+    end
+end
+
+function is_available = can_use_binica()
+    project_root = fileparts(fileparts(mfilename('fullpath')));
+    support_dir = fullfile(project_root, 'eeglab_binica_support');
+    binary_path = fullfile(support_dir, 'ica_linux');
+    source_path = fullfile(support_dir, 'binica.sc');
+
+    is_available = exist('binica', 'file') == 2 && ...
+        exist(binary_path, 'file') == 2 && ...
+        exist(source_path, 'file') == 2;
+
+    if ~is_available
+        return;
+    end
+
+    is_available = ~contains(binary_path, ' ') && ~contains(source_path, ' ');
 end
 
 function heartbeat = start_console_heartbeat(stage_name, period_sec)

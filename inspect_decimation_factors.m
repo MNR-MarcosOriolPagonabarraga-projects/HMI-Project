@@ -2,8 +2,16 @@ clc;
 clear;
 close all;
 
-run('constants.m');
-addpath('routines');
+addpath(genpath('routines'));
+cfg = load_project_config();
+setup_project_paths(cfg.binica_support_dir);
+
+data_root = cfg.data_root;
+figures_root = cfg.figures_root;
+num_eeg_channels = cfg.num_eeg_channels;
+raw_fs = cfg.raw_fs;
+filter_cfg = cfg.filter_cfg;
+epoch_cfg = cfg.epoch_cfg;
 
 subject_idx = 1;
 run_idx = 1;
@@ -35,16 +43,19 @@ fprintf('Theoretical minimum sampling rate to preserve that band: %.1f Hz\n', ny
 fprintf('Largest integer decimation factor that still preserves %.1f Hz from %d Hz: %d\n\n', ...
     filter_cfg.band_hz(2), raw_fs, recommended_factor);
 
-fprintf('%8s %14s %14s %16s %14s\n', 'Factor', 'New Fs (Hz)', 'Nyquist (Hz)', 'Safe For 70 Hz', 'Epoch Samples');
-fprintf('%8s %14s %14s %16s %14s\n', '------', '-----------', '------------', '--------------', '-------------');
+fprintf('%8s %14s %14s %16s %18s %14s\n', ...
+    'Factor', 'New Fs (Hz)', 'Nyquist (Hz)', 'Safe For 70 Hz', 'ICLabel Compatible', 'Epoch Samples');
+fprintf('%8s %14s %14s %16s %18s %14s\n', ...
+    '------', '-----------', '------------', '--------------', '------------------', '-------------');
 
-summary = struct('factor', {}, 'fs', {}, 'nyquist', {}, 'is_safe', {}, 'epoch_samples', {});
+summary = struct('factor', {}, 'fs', {}, 'nyquist', {}, 'is_safe', {}, 'is_iclabel_compatible', {}, 'epoch_samples', {});
 
 for factor_idx = 1:numel(candidate_factors)
     factor = candidate_factors(factor_idx);
     effective_fs = raw_fs / factor;
     nyquist_hz = effective_fs / 2;
     is_safe = effective_fs >= nyquist_requirement_hz;
+    is_iclabel_compatible = abs(effective_fs - round(effective_fs)) <= 1e-9;
 
     start_offset = round(epoch_cfg.window_sec(1) * effective_fs);
     end_offset = round(epoch_cfg.window_sec(2) * effective_fs);
@@ -54,17 +65,21 @@ for factor_idx = 1:numel(candidate_factors)
     summary(factor_idx).fs = effective_fs;
     summary(factor_idx).nyquist = nyquist_hz;
     summary(factor_idx).is_safe = is_safe;
+    summary(factor_idx).is_iclabel_compatible = is_iclabel_compatible;
     summary(factor_idx).epoch_samples = epoch_samples;
 
-    fprintf('%8d %14.2f %14.2f %16s %14d\n', factor, effective_fs, nyquist_hz, string(is_safe), epoch_samples);
+    fprintf('%8d %14.2f %14.2f %16s %18s %14d\n', ...
+        factor, effective_fs, nyquist_hz, string(is_safe), string(is_iclabel_compatible), epoch_samples);
 end
 
 fprintf('\nRecommendation:\n');
 fprintf('- Minimum theoretical sampling rate for the current %.1f Hz upper band: %.1f Hz\n', ...
     filter_cfg.band_hz(2), nyquist_requirement_hz);
-fprintf('- Best compression while still preserving the current band: factor %d (%.2f Hz)\n', ...
-    recommended_factor, raw_fs / recommended_factor);
-fprintf('- Safer practical choice with more margin: factor 2 (%.2f Hz)\n', raw_fs / 2);
+fprintf('- Use only factors that keep both the Nyquist limit and an integer processed sampling rate for ICLabel.\n');
+fprintf('- With raw_fs=%d Hz and a 70 Hz upper band, factor 2 (%.2f Hz) is the only practical ICLabel-safe downsampling choice.\n', ...
+    raw_fs, raw_fs / 2);
+fprintf('- Factor %d preserves the band but is not ICLabel-compatible because it produces a non-integer sampling rate.\n', ...
+    recommended_factor);
 fprintf('- Factors above %d do not preserve the current 70 Hz upper band.\n\n', recommended_factor);
 
 preview_start_sample = max(1, round(preview_window_sec(1) * raw_fs) + 1);
