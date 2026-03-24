@@ -1,4 +1,4 @@
-function results = finalize_project_results(results, trial_rejection_row_blocks, cfg)
+function results = finalize_project_results(results, cfg)
     num_classes = numel(results.movement_codes);
     results.grand_mean_cz = cell(1, num_classes);
 
@@ -11,30 +11,11 @@ function results = finalize_project_results(results, trial_rejection_row_blocks,
         end
     end
 
-    trial_rejection_rows = combine_trial_rejection_rows(trial_rejection_row_blocks);
-
-    if isempty(trial_rejection_rows)
-        results.trial_rejection_table = table();
-    else
-        results.trial_rejection_table = struct2table(trial_rejection_rows);
-        write_trial_rejection_tables(results.trial_rejection_table, cfg.tables_root);
-    end
-
-    plot_cz_erp_summary( ...
+    write_d2_good_trial_report(results, cfg);
+    write_d3_cz_report_plots( ...
         results.time_vector_sec, ...
         results.cz_average, ...
         results.grand_mean_cz, ...
         cfg.movement_labels, ...
         cfg.figures_root);
-end
-
-function combined_rows = combine_trial_rejection_rows(row_blocks)
-    nonempty_blocks = row_blocks(~cellfun(@isempty, row_blocks));
-
-    if isempty(nonempty_blocks)
-        combined_rows = struct([]);
-        return;
-    end
-
-    combined_rows = vertcat(nonempty_blocks{:});
 end

@@ -23,10 +23,15 @@ function cfg = load_project_config()
         'epoch_cfg', epoch_cfg, ...
         'movement_codes', movement_codes, ...
         'movement_labels', {movement_labels}, ...
-        'plot_cfg', plot_cfg);
+        'report_cfg', resolve_report_cfg_paths(project_root, report_cfg));
 
     cfg.processed_fs = resolve_processed_fs(cfg.raw_fs, cfg.decimation_factor);
     cfg.num_classes = numel(cfg.movement_codes);
+end
+
+function report_cfg = resolve_report_cfg_paths(project_root, report_cfg)
+    report_cfg.d1_bad_channels_csv = resolve_project_path(project_root, report_cfg.d1_bad_channels_csv);
+    report_cfg.d2_good_trials_csv = resolve_project_path(project_root, report_cfg.d2_good_trials_csv);
 end
 
 function absolute_path = resolve_project_path(project_root, path_value)

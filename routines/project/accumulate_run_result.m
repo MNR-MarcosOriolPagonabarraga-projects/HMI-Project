@@ -1,11 +1,9 @@
-function [subject_state, run_rows] = accumulate_run_result(subject_state, run_result, subj, run_idx, movement_labels)
+function subject_state = accumulate_run_result(subject_state, run_result)
     num_classes = numel(run_result.run_trial_masks);
-    run_rows = struct([]);
 
     for class_idx = 1:num_classes
         trial_mask = run_result.run_trial_masks{class_idx};
         reject_details = run_result.run_rejection_details{class_idx};
-        trial_info = run_result.run_trial_info{class_idx};
 
         if isempty(subject_state.masks{class_idx})
             subject_state.masks{class_idx} = trial_mask;
@@ -31,26 +29,5 @@ function [subject_state, run_rows] = accumulate_run_result(subject_state, run_re
         elseif ~isempty(run_result.run_cz_epochs{class_idx})
             subject_state.cz_epochs{class_idx} = [subject_state.cz_epochs{class_idx}; run_result.run_cz_epochs{class_idx}];
         end
-
-        new_rows = build_trial_rejection_rows( ...
-            subj, ...
-            run_idx, ...
-            movement_labels{class_idx}, ...
-            run_result.channel_labels, ...
-            trial_info, ...
-            reject_details);
-        run_rows = append_rows(run_rows, new_rows);
-    end
-end
-
-function rows = append_rows(rows, new_rows)
-    if isempty(new_rows)
-        return;
-    end
-
-    if isempty(rows)
-        rows = new_rows;
-    else
-        rows = [rows; new_rows];
     end
 end

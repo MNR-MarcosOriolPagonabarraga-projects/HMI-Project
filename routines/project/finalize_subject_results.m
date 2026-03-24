@@ -1,5 +1,5 @@
 function results = finalize_subject_results(results, subj, subject_state, cfg)
-    cz_idx = find(strcmpi(results.channel_labels, cfg.plot_cfg.erp_channel_label), 1);
+    cz_idx = find(strcmpi(results.channel_labels, cfg.report_cfg.erp_channel_label), 1);
 
     for class_idx = 1:numel(subject_state.masks)
         if isempty(subject_state.masks{class_idx})
@@ -24,13 +24,4 @@ function results = finalize_subject_results(results, subj, subject_state, cfg)
         end
     end
 
-    has_rejection_details = any(~cellfun(@isempty, subject_state.rejection_details));
-    if cfg.plot_cfg.enabled && has_rejection_details && ~isempty(results.channel_labels)
-        plot_trial_rejection_overview( ...
-            subj, ...
-            subject_state.rejection_details, ...
-            results.channel_labels, ...
-            cfg.movement_labels, ...
-            cfg.figures_root);
-    end
 end
