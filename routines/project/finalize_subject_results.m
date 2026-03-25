@@ -16,11 +16,21 @@ function results = finalize_subject_results(results, subj, subject_state, cfg)
             continue;
         end
 
+        n_mask_rows = size(subject_state.masks{class_idx}, 1);
+        n_cz_rows = size(subject_state.cz_epochs{class_idx}, 1);
+        if n_mask_rows ~= n_cz_rows
+            error( ...
+                'HMI:czEpochMaskMismatch', ...
+                ['Trial mask rows (%d) and Cz epoch rows (%d) differ for subject %d, class %d. ', ...
+                'This usually means some runs contributed masks but not Cz epochs (e.g. cache or pipeline mismatch).'], ...
+                n_mask_rows, n_cz_rows, subj, class_idx);
+        end
+
         cz_good_trials = subject_state.masks{class_idx}(:, cz_idx);
         results.cz_good_trial_count(subj, class_idx) = sum(cz_good_trials);
 
         if any(cz_good_trials)
-            results.cz_average{subj, class_idx} = mean(subject_state.cz_epochs{class_idx}(cz_good_trials, :), 1);
+            results.cz_average{subj, class_idx} = mean(subject_state.cz_epochs{class_idx}(cz_good_trials, :), 1, 'omitnan');
         end
     end
 
