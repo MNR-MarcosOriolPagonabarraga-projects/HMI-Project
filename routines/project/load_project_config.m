@@ -27,6 +27,7 @@ function cfg = load_project_config()
 
     cfg.processed_fs = resolve_processed_fs(cfg.raw_fs, cfg.decimation_factor);
     cfg.num_classes = numel(cfg.movement_codes);
+    cfg.bad_channel_cfg.sample_rate_hz = cfg.raw_fs;
 end
 
 function report_cfg = resolve_report_cfg_paths(project_root, report_cfg)

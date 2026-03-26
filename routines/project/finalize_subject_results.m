@@ -30,7 +30,10 @@ function results = finalize_subject_results(results, subj, subject_state, cfg)
         results.cz_good_trial_count(subj, class_idx) = sum(cz_good_trials);
 
         if any(cz_good_trials)
-            results.cz_average{subj, class_idx} = mean(subject_state.cz_epochs{class_idx}(cz_good_trials, :), 1, 'omitnan');
+            good_ep = subject_state.cz_epochs{class_idx}(cz_good_trials, :);
+            results.cz_average{subj, class_idx} = mean(good_ep, 1);
+            results.cz_min{subj, class_idx} = min(good_ep, [], 1);
+            results.cz_max{subj, class_idx} = max(good_ep, [], 1);
         end
     end
 
