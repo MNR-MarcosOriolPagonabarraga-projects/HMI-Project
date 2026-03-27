@@ -10,6 +10,8 @@ eeglab('nogui');
 results = initialize_results(cfg);
 d1_report = initialize_d1_bad_channels_report(cfg);
 
+blabla
+
 for subj = 1:cfg.num_subjects
     fprintf('\n=== Subject %02d ===\n', subj);
     subject_state = initialize_subject_state(cfg.num_classes);
