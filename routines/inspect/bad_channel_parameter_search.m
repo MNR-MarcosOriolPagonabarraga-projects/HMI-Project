@@ -1,13 +1,4 @@
 function bad_channel_parameter_search(cfg, search_cfg)
-    if search_cfg.warn_if_flat_search_with_segmented_cfg && cfg.bad_channel_cfg.use_segmented_windows
-        warning([ ...
-            'bad_channel_parameter_search: cfg.bad_channel_cfg.use_segmented_windows is true. ', ...
-            'The fast grid search optimizes flat (whole-recording) z-scores from compute_bad_channel_zscores ', ...
-            'and does not match segmented voting. Set search_cfg.run_segmented_pipeline_search = true ', ...
-            'to search using get_bad_channels (same as the main pipeline), or temporarily set ', ...
-            'use_segmented_windows to false in constants when tuning global thresholds.']);
-    end
-
     expected_bad_channels = build_expected_bad_channels(cfg);
     dataset = load_search_dataset(cfg, search_cfg, expected_bad_channels);
     if isempty(dataset)
@@ -19,25 +10,15 @@ function bad_channel_parameter_search(cfg, search_cfg)
 
     fprintf('\nLoaded %d available runs for parameter search.\n', numel(dataset));
 
-    if search_cfg.run_segmented_pipeline_search
-        search_results = evaluate_segmented_pipeline_search(dataset, cfg, search_cfg, feature_sets);
-        metrics = struct();
-        metrics.expected_mask = [];
-    else
-        metrics = precompute_search_metrics(dataset, normalization_cfgs, cfg);
-        fprintf('Reference positive runs: %d | reference clean runs: %d\n', ...
-            nnz(metrics.expected_run_has_bad), nnz(~metrics.expected_run_has_bad));
-        search_results = evaluate_search_space(metrics, normalization_cfgs, feature_sets, search_cfg);
-    end
+    metrics = precompute_search_metrics(dataset, normalization_cfgs, cfg);
+    fprintf('Reference positive runs: %d | reference clean runs: %d\n', ...
+        nnz(metrics.expected_run_has_bad), nnz(~metrics.expected_run_has_bad));
+    search_results = evaluate_search_space(metrics, normalization_cfgs, feature_sets, search_cfg);
 
     writetable(search_results, search_cfg.results_csv_path);
 
     best_result = search_results(1, :);
-    if search_cfg.run_segmented_pipeline_search
-        run_comparison_table = build_run_comparison_table_segmented(dataset, cfg, best_result);
-    else
-        run_comparison_table = build_run_comparison_table(metrics, normalization_cfgs, best_result);
-    end
+    run_comparison_table = build_run_comparison_table(metrics, normalization_cfgs, best_result);
     writetable(run_comparison_table, search_cfg.best_run_csv_path);
 
     top_count = min(search_cfg.max_top_results, height(search_results));
@@ -192,7 +173,6 @@ function metrics = precompute_search_metrics(dataset, normalization_cfgs, cfg)
         for norm_idx = 1:num_norm_cfgs
             norm_cfg = normalization_cfgs(norm_idx);
             bc = cfg.bad_channel_cfg;
-            bc.use_segmented_windows = false;
             bc.normalization = norm_cfg.normalization;
             bc.trim_percent = norm_cfg.trim_percent;
             zdetail = compute_bad_channel_zscores(filtered_data, bc);
@@ -368,145 +348,6 @@ function search_results = evaluate_search_space(metrics, normalization_cfgs, fea
     search_results = sortrows(search_results, ...
         {'score', 'channel_f1', 'positive_exact_rate', 'negative_exact_rate', 'exact_run_matches', 'false_positives', 'false_negatives'}, ...
         {'descend', 'descend', 'descend', 'descend', 'descend', 'ascend', 'ascend'});
-end
-
-function search_results = evaluate_segmented_pipeline_search(dataset, cfg, search_cfg, feature_sets)
-    sz_z = numel(search_cfg.segment_z_threshold_values);
-    sz_f = numel(search_cfg.segment_bad_fraction_values);
-    sz_l = numel(search_cfg.segment_length_sec_values);
-    sz_s = numel(search_cfg.segment_step_sec_values);
-    n_feat = numel(feature_sets);
-    total_configs = sz_z * sz_f * sz_l * sz_s * n_feat;
-
-    fprintf('Evaluating %d segmented pipeline configs (get_bad_channels)...\n', total_configs);
-
-    score = zeros(total_configs, 1);
-    channel_f1 = zeros(total_configs, 1);
-    positive_exact_rate = zeros(total_configs, 1);
-    negative_exact_rate = zeros(total_configs, 1);
-    exact_run_matches = zeros(total_configs, 1);
-    true_positives = zeros(total_configs, 1);
-    false_positives = zeros(total_configs, 1);
-    false_negatives = zeros(total_configs, 1);
-
-    seg_z = zeros(total_configs, 1);
-    seg_frac = zeros(total_configs, 1);
-    seg_len = zeros(total_configs, 1);
-    seg_step = zeros(total_configs, 1);
-    feature_set_name = strings(total_configs, 1);
-    use_correlation = false(total_configs, 1);
-    use_variance = false(total_configs, 1);
-    use_range = false(total_configs, 1);
-    use_kurtosis = false(total_configs, 1);
-
-    num_runs = numel(dataset);
-    num_ch = cfg.num_eeg_channels;
-    expected_mask = false(num_ch, num_runs);
-    for run_col = 1:num_runs
-        ex = dataset(run_col).expected_bad_idx;
-        if ~isempty(ex)
-            expected_mask(ex, run_col) = true;
-        end
-    end
-    expected_run_has_bad = any(expected_mask, 1);
-
-    row_idx = 0;
-    for iz = 1:sz_z
-        for ifrac = 1:sz_f
-            for il = 1:sz_l
-                for is = 1:sz_s
-                    for feat_idx = 1:n_feat
-                        row_idx = row_idx + 1;
-                        bc = cfg.bad_channel_cfg;
-                        bc.use_segmented_windows = true;
-                        bc.sample_rate_hz = cfg.raw_fs;
-                        bc.segment_z_threshold = search_cfg.segment_z_threshold_values(iz);
-                        bc.segment_bad_fraction = search_cfg.segment_bad_fraction_values(ifrac);
-                        bc.segment_length_sec = search_cfg.segment_length_sec_values(il);
-                        bc.segment_step_sec = search_cfg.segment_step_sec_values(is);
-                        fs = feature_sets(feat_idx);
-                        bc.use_correlation = fs.use_correlation;
-                        bc.use_variance = fs.use_variance;
-                        bc.use_range = fs.use_range;
-                        bc.use_kurtosis = fs.use_kurtosis;
-
-                        predicted_mask = false(num_ch, num_runs);
-                        for run_col = 1:num_runs
-                            [raw_data, ~] = load_patient_run(dataset(run_col).run_path, cfg.num_eeg_channels);
-                            fd = band_pass_filter(raw_data, cfg.raw_fs, cfg.filter_cfg.order, cfg.filter_cfg.band_hz);
-                            [bad_idx, ~] = get_bad_channels(fd, bc);
-                            predicted_mask(bad_idx, run_col) = true;
-                        end
-
-                        stats = compute_prediction_stats(predicted_mask, expected_mask, expected_run_has_bad, search_cfg.score_weights);
-                        score(row_idx) = stats.score;
-                        channel_f1(row_idx) = stats.channel_f1;
-                        positive_exact_rate(row_idx) = stats.positive_exact_rate;
-                        negative_exact_rate(row_idx) = stats.negative_exact_rate;
-                        exact_run_matches(row_idx) = stats.exact_run_matches;
-                        true_positives(row_idx) = stats.true_positives;
-                        false_positives(row_idx) = stats.false_positives;
-                        false_negatives(row_idx) = stats.false_negatives;
-
-                        seg_z(row_idx) = bc.segment_z_threshold;
-                        seg_frac(row_idx) = bc.segment_bad_fraction;
-                        seg_len(row_idx) = bc.segment_length_sec;
-                        seg_step(row_idx) = bc.segment_step_sec;
-                        feature_set_name(row_idx) = string(fs.name);
-                        use_correlation(row_idx) = fs.use_correlation;
-                        use_variance(row_idx) = fs.use_variance;
-                        use_range(row_idx) = fs.use_range;
-                        use_kurtosis(row_idx) = fs.use_kurtosis;
-                    end
-                end
-            end
-        end
-    end
-
-    search_results = table( ...
-        score, channel_f1, positive_exact_rate, negative_exact_rate, exact_run_matches, ...
-        true_positives, false_positives, false_negatives, ...
-        seg_z, seg_frac, seg_len, seg_step, ...
-        feature_set_name, use_correlation, use_variance, use_range, use_kurtosis);
-
-    search_results = sortrows(search_results, ...
-        {'score', 'channel_f1', 'positive_exact_rate', 'negative_exact_rate', 'exact_run_matches', 'false_positives', 'false_negatives'}, ...
-        {'descend', 'descend', 'descend', 'descend', 'descend', 'ascend', 'ascend'});
-end
-
-function run_comparison_table = build_run_comparison_table_segmented(dataset, cfg, best_result)
-    bc = cfg.bad_channel_cfg;
-    bc.use_segmented_windows = true;
-    bc.sample_rate_hz = cfg.raw_fs;
-    bc.segment_z_threshold = best_result.seg_z;
-    bc.segment_bad_fraction = best_result.seg_frac;
-    bc.segment_length_sec = best_result.seg_len;
-    bc.segment_step_sec = best_result.seg_step;
-    bc.use_correlation = best_result.use_correlation;
-    bc.use_variance = best_result.use_variance;
-    bc.use_range = best_result.use_range;
-    bc.use_kurtosis = best_result.use_kurtosis;
-
-    num_runs = numel(dataset);
-    num_ch = cfg.num_eeg_channels;
-    predicted_mask = false(num_ch, num_runs);
-    metrics = struct();
-    metrics.expected_mask = false(num_ch, num_runs);
-    for run_col = 1:num_runs
-        ex = dataset(run_col).expected_bad_idx;
-        if ~isempty(ex)
-            metrics.expected_mask(ex, run_col) = true;
-        end
-        [raw_data, ~] = load_patient_run(dataset(run_col).run_path, cfg.num_eeg_channels);
-        fd = band_pass_filter(raw_data, cfg.raw_fs, cfg.filter_cfg.order, cfg.filter_cfg.band_hz);
-        [bad_idx, ~] = get_bad_channels(fd, bc);
-        predicted_mask(bad_idx, run_col) = true;
-    end
-
-    metrics.subject_idx = [dataset.subject_idx]';
-    metrics.run_idx = [dataset.run_idx]';
-    metrics.run_label = string({dataset.run_label}');
-    run_comparison_table = pack_run_comparison_table(metrics, predicted_mask);
 end
 
 function threshold_masks = build_threshold_masks(abs_z_values, invalid_mask, threshold_values)

@@ -11,14 +11,12 @@ mode = 'search';  % 'search' or 'inspect'
 
 inspect_cfg = bad_channel_inspect_defaults(cfg, 'inspect');
 search_cfg = bad_channel_inspect_defaults(cfg, 'search');
-
-% Fast grid: ~2e4 combinations vs ~2.8e7 defaults (9 norm modes x 15 feature sets x dense z grids).
 search_cfg.normalization_options = {'standard'};
 search_cfg.feature_set_names = {'corr+var+range+kurt'};
 search_cfg.corr_threshold_values = 3:0.5:10;
-search_cfg.var_threshold_values = 5:2:19;
-search_cfg.range_threshold_values = 3:0.5:10;
-search_cfg.kurt_threshold_values = 8:2:28;
+search_cfg.var_threshold_values = 5:2:20;
+search_cfg.range_threshold_values = 5:0.5:14;
+search_cfg.kurt_threshold_values = 16:2:28;
 
 switch lower(mode)
     case 'inspect'

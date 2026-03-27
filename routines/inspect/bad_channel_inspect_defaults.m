@@ -40,13 +40,4 @@ function search_cfg = build_default_search_cfg(cfg)
         'channel_f1', 100, ...
         'positive_exact_rate', 10, ...
         'negative_exact_rate', 5);
-
-    search_cfg.run_segmented_pipeline_search = false;
-
-    search_cfg.segment_z_threshold_values = 2.5:0.5:10;
-    search_cfg.segment_bad_fraction_values = 0.25:0.05:0.65;
-    search_cfg.segment_length_sec_values = [1 1.5 2 2.5 3];
-    search_cfg.segment_step_sec_values = [0.5 0.75 1 1.5 2];
-
-    search_cfg.warn_if_flat_search_with_segmented_cfg = true;
 end

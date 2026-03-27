@@ -1,10 +1,5 @@
 function [bad_idx, details] = get_bad_channels(channels, cfg)
     cfg = bad_channel_cfg_apply_defaults(cfg);
-    if cfg.use_segmented_windows
-        [bad_idx, details] = get_bad_channels_segmented(channels, cfg);
-        return;
-    end
-
     [zdetail, cfg] = compute_bad_channel_zscores(channels, cfg);
     mean_corr = zdetail.mean_corr;
     channel_variance = zdetail.variance;

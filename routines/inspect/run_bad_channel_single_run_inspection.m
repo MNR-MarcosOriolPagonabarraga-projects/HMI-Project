@@ -20,22 +20,13 @@ function run_bad_channel_single_run_inspection(cfg, inspect_cfg)
     writetable(diagnostics_table, csv_path);
 
     fprintf('\nBad-channel inspection for S%02d R%02d\n', subject_idx, run_idx);
-    if isfield(bad_channel_cfg, 'use_segmented_windows') && bad_channel_cfg.use_segmented_windows
-        fprintf('Bad channels: segmented windows (%.1fs step %.1fs, z>%.1f, vote >%.0f%% of windows)\n', ...
-            bad_channel_cfg.segment_length_sec, ...
-            bad_channel_cfg.segment_step_sec, ...
-            bad_channel_cfg.segment_z_threshold, ...
-            100 * bad_channel_cfg.segment_bad_fraction);
-        fprintf('Global z-scores below are for reference (trimmed); final labels use the segment vote.\n');
-    else
-        fprintf('Filter: %.1f-%.1f Hz | normalization: %s | trim: %.1f%% per tail\n', ...
-            cfg.filter_cfg.band_hz(1), cfg.filter_cfg.band_hz(2), bad_channel_cfg.normalization, bad_channel_cfg.trim_percent);
-        fprintf('Thresholds -> corr: %.2f, var: %.2f, range: %.2f, kurt: %.2f\n', ...
-            bad_channel_cfg.corr_z_threshold, ...
-            bad_channel_cfg.var_z_threshold, ...
-            bad_channel_cfg.range_z_threshold, ...
-            bad_channel_cfg.kurt_z_threshold);
-    end
+    fprintf('Filter: %.1f-%.1f Hz | normalization: %s | trim: %.1f%% per tail\n', ...
+        cfg.filter_cfg.band_hz(1), cfg.filter_cfg.band_hz(2), bad_channel_cfg.normalization, bad_channel_cfg.trim_percent);
+    fprintf('Thresholds -> corr: %.2f, var: %.2f, range: %.2f, kurt: %.2f\n', ...
+        bad_channel_cfg.corr_z_threshold, ...
+        bad_channel_cfg.var_z_threshold, ...
+        bad_channel_cfg.range_z_threshold, ...
+        bad_channel_cfg.kurt_z_threshold);
 
     if isempty(bad_idx)
         fprintf('Detected bad channels: []\n');
@@ -112,16 +103,6 @@ function diagnostics_table = build_diagnostics_table(channel_labels, details)
 end
 
 function reason_text = join_reasons(details, idx)
-    if isfield(details, 'use_segmented_windows') && details.use_segmented_windows
-        if details.bad_mask(idx)
-            frac = details.segmented_bad_fraction_per_channel(idx);
-            reason_text = sprintf('segment_vote (%.0f%% segments)', 100 * frac);
-        else
-            reason_text = '';
-        end
-        return;
-    end
-
     reasons = {};
 
     if details.bad_corr_mask(idx), reasons{end + 1} = 'corr'; end

@@ -1,9 +1,10 @@
 function EEG = run_ica_and_clean(EEG, cfg)
     dataRank = rank(double(EEG.data));
     ica_backend = select_ica_backend(cfg);
+    ica_opts = build_ica_algorithm_options(cfg, dataRank, ica_backend);
     fprintf('[%s] Running ICA with %s...\n', timestamp_string(), upper(ica_backend));
     ica_timer = tic;
-    EEG = pop_runica(EEG, 'icatype', ica_backend, 'extended', 1, 'pca', dataRank);
+    EEG = pop_runica(EEG, 'icatype', ica_backend, 'options', ica_opts);
     fprintf('[%s] ICA finished in %.1f minutes.\n', timestamp_string(), toc(ica_timer) / 60);
 
     fprintf('[%s] Starting ICLabel classification.\n', timestamp_string());
@@ -32,6 +33,33 @@ function EEG = run_ica_and_clean(EEG, cfg)
     end
 
     EEG = eeg_checkset(EEG);
+end
+
+function opts = build_ica_algorithm_options(cfg, dataRank, ica_backend)
+    % EEGLAB: 'icatype' selects the routine; algorithm args go in 'options' only.
+    % SOBI is icatype 'sobi' (calls sobi.m), not a flag for runica.
+    switch lower(ica_backend)
+        case {'runica', 'binica'}
+            opts = [pop_runica_user_options(cfg), {'pca', dataRank}];
+        case 'sobi'
+            opts = sobi_user_options(cfg);
+        otherwise
+            opts = pop_runica_user_options(cfg);
+    end
+end
+
+function opts = pop_runica_user_options(cfg)
+    opts = {};
+    if isfield(cfg, 'pop_runica_options')
+        opts = cfg.pop_runica_options(:)';
+    end
+end
+
+function opts = sobi_user_options(cfg)
+    opts = {};
+    if isfield(cfg, 'sobi_options')
+        opts = cfg.sobi_options(:)';
+    end
 end
 
 function ica_backend = select_ica_backend(cfg)
